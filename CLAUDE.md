@@ -43,11 +43,19 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
   OPERATIONS_NOTES.md, BRAND.md.
 
 ## Formulas implemented (fill in as built)
+- Money helper `Backend/src/common/money/decimal.ts`: decimal.js, precision 40, ROUND_HALF_EVEN
+  (banker's rounding). `money(v,dp=2)`, `price(v,digits)`. Unit-proven: 0.1+0.2===0.3 exactly.
 - _Margin, floating P&L, equity/free margin/margin level, stop-out ordering, swap/triple-day,
-  pip value (incl. XAUUSD contract_size=100) — implemented in Phase 3. Details recorded here then._
+  pip value (incl. XAUUSD contract_size=100) — Phase 3._
 
 ## Gotchas discovered
-- _(none yet)_
+- **npm in this sandbox blocks native install scripts** (argon2, prisma engines, esbuild, sharp). After
+  `npm install`, approve via `npm approve-scripts <pkg>` (writes `allowScripts` in root package.json).
+  Required for argon2 binding + prisma engines + esbuild(vitest). Normal npm elsewhere ignores that key.
+- **@fastify/cookie + Nest Fastify adapter**: type mismatch (missing serializeCookie…). Register with
+  `fastifyCookie as any` + eslint-disable — harmless plugin-augmentation interop gap.
+- No Docker/pnpm in the dev sandbox → **npm workspaces**; Postgres/Redis run via the user's own Docker.
+  Live register→login→2FA verified by the user locally (compiles + unit-tested here).
 
 ## Design direction decided (Phase 0 — see docs/DESIGN_NOTES.md)
 - **Name:** Aurum Markets (Au = gold = XAU). Positioning: gold-first broker for Kenya, M-Pesa funding.
@@ -70,4 +78,14 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
   git remote wired. Four parallel research streams (broker UI, terminal craft, operations/regulation,
   cashflow/M-Pesa/market-data), all sourced. Deliverables written: docs/DESIGN_NOTES.md,
   docs/OPERATIONS_NOTES.md, docs/BRAND.md. Design direction chosen + self-critiqued vs banned patterns.
-  → **STOP POINT 0** (awaiting approval before Phase 1 code).
+  → **STOP POINT 0** — APPROVED.
+- **Phase 1 — Foundation** (COMPLETE pending review, 2026-08-14): npm-workspaces monorepo (Frontend/,
+  Backend/), docker-compose (postgres:16, redis:7), documented .env.example files, docs/ARCHITECTURE.md.
+  Backend: NestFastify + Prisma schema v1 (full core model, money=Decimal, ledger tables), seed
+  (20 instruments, admin+TOTP, KYC-approved demo client, $10k demo account via balanced opening entry),
+  auth (argon2id, TOTP 2FA two-step, hashed session cookies + device revoke, RBAC, audit, error
+  envelope, zod). Frontend: tokens.css from approved direction, Tailwind→tokens, UI primitives
+  (button/input/card/badge/table/dialog/tabs/toast/flash-number), Live Gold Rail signature, marketing
+  home, /showcase, register/login/2FA + gated /portal (2FA setup + sessions). Verified: backend tsc✓
+  vitest 9/9✓ eslint✓; frontend tsc✓ next build✓ (8 routes). Live DB flow runs on user's Docker.
+  → **STOP POINT 1** (awaiting review).

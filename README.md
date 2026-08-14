@@ -8,7 +8,8 @@
 licensed to offer real-money trading. See `docs/BRAND.md` for the risk disclosure.
 
 ## Status
-**Phase 0 (Research & design direction) — complete, in review.** Code begins in Phase 1.
+**Phase 1 (Foundation) — complete, in review.** Monorepo, Prisma schema v1 + seed, auth (argon2id +
+TOTP 2FA + sessions/RBAC), design tokens + UI primitives, marketing/showcase/auth/portal surfaces.
 
 ## What this will be (four surfaces, one design system)
 1. **Marketing site** — public; instruments, live spreads, accounts, funding, legal/risk pages.
@@ -35,5 +36,50 @@ CLAUDE.md   # living project memory — read first
 - [`docs/BRAND.md`](docs/BRAND.md) — name, positioning, voice, risk warning.
 - [`CLAUDE.md`](CLAUDE.md) — decisions, conventions, formulas, per-phase changelog.
 
-## Run
-_Not yet — no application code until Phase 1. One-command demo (`docker compose up` + seed + dev) lands as phases complete._
+## Run (local dev)
+
+Prerequisites: Node 20–24, npm, Docker Desktop.
+
+```bash
+# 1. Install (this sandbox blocks native install scripts — see note below)
+npm install
+
+# 2. Start Postgres 16 + Redis 7
+docker compose up -d
+
+# 3. Configure env
+cp Backend/.env.example Backend/.env
+cp Frontend/.env.example Frontend/.env
+
+# 4. Create the schema and seed demo data
+npm run prisma:migrate      # runs `prisma migrate dev` in Backend
+npm run seed                # instruments, admin, demo client + funded demo account
+
+# 5. Run both apps (backend :4000, frontend :3000)
+npm run dev
+```
+
+Open **http://localhost:3000** (marketing), **/showcase** (design system), **/register** or **/login**.
+Seeded logins are printed by the seed script:
+- **Client** `demo@aurum.markets` / `Aurum#Demo1` (KYC tier 2, $10,000 demo account)
+- **Admin** `admin@aurum.markets` / `Aurum#Admin1` (+ a TOTP `otpauth://` URL to add to your authenticator)
+
+> **Native install scripts:** if `npm install` reports blocked scripts (argon2, prisma, esbuild, sharp),
+> run `npm approve-scripts argon2 @prisma/client @prisma/engines prisma esbuild sharp` then re-run install.
+> On a normal machine `npm install` runs them automatically.
+
+### Verify
+```bash
+npm run typecheck   # Backend + Frontend
+npm run test        # Backend unit + property tests (Vitest)
+npm run build       # production build of both
+```
+
+## Demo vs production-real
+
+| Concern | Demo (default) | Production-real (flagged off) |
+|---|---|---|
+| Prices | Simulated feed, labelled DEMO | LP/bridge FIX feed (`FeedAdapter`) |
+| Trading | Paper, B-book vs `pnl:trading` | `LIVE_TRADING=true` + risk/routing engine |
+| Payments | M-Pesa **sandbox** | `LIVE_PAYMENTS=true` + live Daraja/payouts |
+| Licence | None — demo only | CMA (Kenya) authorisation required |

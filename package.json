@@ -1,0 +1,37 @@
+{
+  "name": "aurum",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aurum Markets — gold-first forex/CFD broker platform (demo-first).",
+  "workspaces": [
+    "Backend",
+    "Frontend"
+  ],
+  "engines": {
+    "node": ">=20 <25"
+  },
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c yellow,cyan \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run start:dev -w Backend",
+    "dev:frontend": "npm run dev -w Frontend",
+    "build": "npm run build -w Backend && npm run build -w Frontend",
+    "typecheck": "npm run typecheck -w Backend && npm run typecheck -w Frontend",
+    "lint": "npm run lint -w Backend && npm run lint -w Frontend",
+    "test": "npm run test -w Backend",
+    "prisma:generate": "npm run prisma:generate -w Backend",
+    "prisma:migrate": "npm run prisma:migrate -w Backend",
+    "seed": "npm run seed -w Backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "argon2@0.41.1": true,
+    "esbuild@0.28.2": true,
+    "prisma@6.19.3": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.12.2": true
+  }
+}

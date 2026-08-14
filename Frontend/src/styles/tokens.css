@@ -1,0 +1,75 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Aurum Markets — design tokens (single source of truth).
+   Encoded from docs/DESIGN_NOTES.md § "Chosen design direction".
+   Components consume these via Tailwind (see tailwind.config.ts). No raw hex in
+   components. Dark is the primary system; --font-* come from next/font.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* surfaces — near-black, 4-step elevation */
+  --bg: #0a0c10;
+  --surface: #11141b;
+  --surface-2: #171b24;
+  --border: #232936;
+  --text: #e7eaf0;
+  --text-dim: #9aa3b2;
+  --text-faint: #5c6675;
+
+  /* brand gold (accent + interactive emphasis, never decoration soup) */
+  --gold: #e6b450;
+  --gold-strong: #f0c368;
+  --gold-dim: #8a6e33;
+
+  /* semantic data — green/red reserved for price direction & P&L only */
+  --up: #2ebd85;
+  --down: #f0616e;
+  --up-bg: rgba(46, 189, 133, 0.12);
+  --down-bg: rgba(240, 97, 110, 0.12);
+
+  /* order buttons — blue-buy / red-sell (anti-clash with P&L green) */
+  --buy: #2f74e0;
+  --sell: #e24c57;
+
+  /* status */
+  --warn: #e6b450;
+  --danger: #f0616e;
+  --ok: #2ebd85;
+  --info: #2f74e0;
+
+  /* radius (small — >8px banned on containers) */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+
+  /* spacing (4px base) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* type — families provided by next/font, with safe fallbacks */
+  --font-display: var(--font-fraunces, Georgia, 'Times New Roman', serif);
+  --font-ui: var(--font-inter, system-ui, -apple-system, sans-serif);
+  --font-mono: var(--font-roboto-mono, ui-monospace, 'SFMono-Regular', monospace);
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Accessibility: color-blind (CVD) mode — Binance-style green→blue / red→amber. */
+[data-cvd] {
+  --up: #3b9eff;
+  --down: #f5a623;
+  --up-bg: rgba(59, 158, 255, 0.12);
+  --down-bg: rgba(245, 166, 35, 0.12);
+  --buy: #3b9eff;
+  --sell: #f5a623;
+}
+
+/* Marketing surface: same token family, marginally warmer near-black base. */
+[data-surface='marketing'] {
+  --bg: #0b0d12;
+}

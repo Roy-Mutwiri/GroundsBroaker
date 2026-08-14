@@ -1,0 +1,518 @@
+// Aurum Markets — Prisma schema v1
+// PRINCIPLE #1: money is sacred. Every monetary/price field is Decimal (Postgres NUMERIC),
+// never Float. Wallet/account balances are DERIVED from the double-entry ledger (journal_lines),
+// not stored as mutable columns. See docs/OPERATIONS_NOTES.md and CLAUDE.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Identity & auth ──────────────────────────────
+
+enum UserRole {
+  CLIENT
+  ADMIN
+  COMPLIANCE
+  DEALER
+  PAYMENTS
+}
+
+enum UserStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  role         UserRole   @default(CLIENT)
+  status       UserStatus @default(ACTIVE)
+  firstName    String?
+  lastName     String?
+  phone        String? // E.164, e.g. +2547XXXXXXXX (M-Pesa MSISDN)
+  country      String     @default("KE")
+
+  // 2FA (TOTP). Required for staff; optional for clients.
+  totpSecret    String?
+  totpEnabledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions        Session[]
+  kycProfile      KycProfile?
+  kycDocuments    KycDocument[]
+  tradingAccounts TradingAccount[]
+  deposits        Deposit[]
+  withdrawals     Withdrawal[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]       @relation("actor")
+
+  @@index([role])
+  @@map("users")
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique // sha-256 of the opaque session token stored in the cookie
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ───────────────────────────── KYC ──────────────────────────────────────────
+
+enum KycStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model KycProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier        Int       @default(0) // 0 = none, 1 = ID+selfie, 2 = +proof of address
+  status      KycStatus @default(NONE)
+  dateOfBirth DateTime?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("kyc_profiles")
+}
+
+enum KycDocumentType {
+  ID_FRONT
+  ID_BACK
+  SELFIE
+  PROOF_OF_ADDRESS
+}
+
+model KycDocument {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         KycDocumentType
+  storageKey   String // path OUTSIDE web root; served via short-lived signed URL
+  status       KycStatus       @default(PENDING)
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime        @default(now())
+
+  @@index([userId])
+  @@map("kyc_documents")
+}
+
+// ───────────────────────────── Accounts ─────────────────────────────────────
+
+enum AccountType {
+  DEMO
+  LIVE
+}
+
+enum AccountStatus {
+  ACTIVE
+  READONLY
+  CLOSED
+}
+
+model TradingAccount {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  login     Int           @unique @default(autoincrement()) // human-facing account number
+  type      AccountType   @default(DEMO)
+  currency  String        @default("USD") // base currency: USD or KES
+  leverage  Int           @default(200) // 1:leverage (CMA cap 400)
+  status    AccountStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  orders    Order[]
+  positions Position[]
+  trades    Trade[]
+
+  @@index([userId])
+  @@map("trading_accounts")
+}
+
+// ───────────────────────────── Instruments ──────────────────────────────────
+
+enum InstrumentCategory {
+  FX_MAJOR
+  FX_MINOR
+  METAL
+  INDEX
+  CRYPTO
+}
+
+model Instrument {
+  id           String             @id @default(cuid())
+  symbol       String             @unique // e.g. EURUSD, XAUUSD
+  displayName  String
+  category     InstrumentCategory
+  digits       Int // price decimal places (FX 5, JPY 3, XAUUSD 2, indices 1-2)
+  contractSize Decimal            @db.Decimal(20, 4) // 100000 FX, 100 XAUUSD
+  pipSize      Decimal            @db.Decimal(20, 10) // value of 1 pip in price terms
+  pointSize    Decimal            @db.Decimal(20, 10) // smallest price increment (10 points = 1 pip on 5-digit)
+  minLot       Decimal            @db.Decimal(12, 4) @default(0.01)
+  maxLot       Decimal            @db.Decimal(12, 4) @default(100)
+  lotStep      Decimal            @db.Decimal(12, 4) @default(0.01)
+  leverageCap  Int                @default(200)
+  marginCurrency String           @default("USD")
+  quoteCurrency  String // e.g. USD for EURUSD
+  baseCurrency   String // e.g. EUR for EURUSD
+  spreadMarkupPoints Int          @default(0) // points added to raw feed
+  swapLong     Decimal            @db.Decimal(12, 4) @default(0) // swap points per lot per night, long
+  swapShort    Decimal            @db.Decimal(12, 4) @default(0)
+  tripleSwapDay Int               @default(3) // 3 = Wednesday (0=Sun..6=Sat)
+  tradingHours Json? // sessions per weekday, GMT
+  enabled      Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  swapRates SwapRate[]
+  orders    Order[]
+  positions Position[]
+  trades    Trade[]
+  candles   Candle1m[]
+
+  @@index([category])
+  @@map("instruments")
+}
+
+model SwapRate {
+  id           String     @id @default(cuid())
+  instrumentId String
+  instrument   Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  effectiveAt  DateTime   @default(now())
+  swapLong     Decimal    @db.Decimal(12, 4)
+  swapShort    Decimal    @db.Decimal(12, 4)
+
+  @@index([instrumentId, effectiveAt])
+  @@map("swap_rates")
+}
+
+// ───────────────────────────── Market data ──────────────────────────────────
+
+model Candle1m {
+  id           String     @id @default(cuid())
+  instrumentId String
+  instrument   Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  ts           DateTime // minute-open timestamp (UTC)
+  open         Decimal    @db.Decimal(20, 10)
+  high         Decimal    @db.Decimal(20, 10)
+  low          Decimal    @db.Decimal(20, 10)
+  close        Decimal    @db.Decimal(20, 10)
+  volume       Decimal    @db.Decimal(20, 4) @default(0)
+
+  @@unique([instrumentId, ts])
+  @@index([instrumentId, ts])
+  @@map("candles_1m")
+}
+
+// ───────────────────────────── Trading ──────────────────────────────────────
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderKind {
+  MARKET
+  LIMIT
+  STOP
+}
+
+enum OrderStatus {
+  PENDING
+  FILLED
+  PARTIALLY_FILLED
+  CANCELLED
+  REJECTED
+  EXPIRED
+}
+
+model Order {
+  id           String         @id @default(cuid())
+  accountId    String
+  account      TradingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  instrumentId String
+  instrument   Instrument     @relation(fields: [instrumentId], references: [id])
+  side         OrderSide
+  kind         OrderKind
+  status       OrderStatus    @default(PENDING)
+  lots         Decimal        @db.Decimal(12, 4)
+  price        Decimal?       @db.Decimal(20, 10) // limit/stop trigger price
+  filledPrice  Decimal?       @db.Decimal(20, 10)
+  stopLoss     Decimal?       @db.Decimal(20, 10)
+  takeProfit   Decimal?       @db.Decimal(20, 10)
+  slippagePoints Int?
+  reason       String? // rejection/expiry reason
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  filledAt     DateTime?
+
+  trades Trade[]
+
+  @@index([accountId, status])
+  @@map("orders")
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+}
+
+model Position {
+  id           String         @id @default(cuid())
+  accountId    String
+  account      TradingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  instrumentId String
+  instrument   Instrument     @relation(fields: [instrumentId], references: [id])
+  side         OrderSide
+  status       PositionStatus @default(OPEN)
+  lots         Decimal        @db.Decimal(12, 4)
+  openPrice    Decimal        @db.Decimal(20, 10)
+  closePrice   Decimal?       @db.Decimal(20, 10)
+  stopLoss     Decimal?       @db.Decimal(20, 10)
+  takeProfit   Decimal?       @db.Decimal(20, 10)
+  swapAccrued  Decimal        @db.Decimal(20, 10) @default(0)
+  realizedPnl  Decimal?       @db.Decimal(20, 10)
+  openedAt     DateTime       @default(now())
+  closedAt     DateTime?
+
+  trades Trade[]
+
+  @@index([accountId, status])
+  @@map("positions")
+}
+
+enum TradeKind {
+  OPEN
+  CLOSE
+  PARTIAL_CLOSE
+}
+
+model Trade {
+  id           String         @id @default(cuid())
+  accountId    String
+  account      TradingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  instrumentId String
+  instrument   Instrument     @relation(fields: [instrumentId], references: [id])
+  orderId      String?
+  order        Order?         @relation(fields: [orderId], references: [id])
+  positionId   String?
+  position     Position?      @relation(fields: [positionId], references: [id])
+  kind         TradeKind
+  side         OrderSide
+  lots         Decimal        @db.Decimal(12, 4)
+  price        Decimal        @db.Decimal(20, 10)
+  commission   Decimal        @db.Decimal(20, 10) @default(0)
+  pnl          Decimal        @db.Decimal(20, 10) @default(0)
+  executedAt   DateTime       @default(now())
+
+  @@index([accountId, executedAt])
+  @@map("trades")
+}
+
+// ───────────────────────────── Double-entry ledger ──────────────────────────
+// Balances are DERIVED by summing journal_lines. Entries are immutable; corrections
+// are reversing entries. Σdebits == Σcredits enforced in the write transaction.
+
+enum LedgerAccountKind {
+  ASSET
+  LIABILITY
+  REVENUE
+  EQUITY
+  EXPENSE
+}
+
+model LedgerAccount {
+  id        String            @id @default(cuid())
+  code      String            @unique // e.g. client:{id}:wallet, psp:mpesa:clearing, revenue:spread
+  kind      LedgerAccountKind
+  currency  String            @default("USD")
+  userId    String? // set for per-client accounts
+  createdAt DateTime          @default(now())
+
+  lines JournalLine[]
+
+  @@index([userId])
+  @@map("ledger_accounts")
+}
+
+model JournalEntry {
+  id          String   @id @default(cuid())
+  reference   String? // external ref (M-Pesa receipt, withdrawal id, trade id...)
+  description String
+  reversalOf  String? // id of the entry this reverses
+  createdAt   DateTime @default(now())
+
+  lines JournalLine[]
+
+  @@index([reference])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id        String        @id @default(cuid())
+  entryId   String
+  entry     JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  account   LedgerAccount @relation(fields: [accountId], references: [id])
+  // Signed amount: positive = debit, negative = credit. Σ over an entry must be 0.
+  debit     Decimal       @db.Decimal(30, 10) @default(0)
+  credit    Decimal       @db.Decimal(30, 10) @default(0)
+  currency  String        @default("USD")
+
+  @@index([accountId])
+  @@index([entryId])
+  @@map("journal_lines")
+}
+
+// ───────────────────────────── Payments ─────────────────────────────────────
+
+enum PaymentMethod {
+  MPESA
+  CARD
+  BANK
+}
+
+enum DepositStatus {
+  INITIATED
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+model Deposit {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method       PaymentMethod
+  status       DepositStatus @default(INITIATED)
+  amount       Decimal       @db.Decimal(30, 10)
+  currency     String        @default("KES")
+  // Idempotency: M-Pesa STK CheckoutRequestID / receipt
+  providerRef  String?       @unique
+  receipt      String?       @unique
+  rawEventId   String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([userId, status])
+  @@map("deposits")
+}
+
+enum WithdrawalStatus {
+  REQUESTED
+  APPROVED // compliance approved (maker-checker)
+  PROCESSING // payout initiated
+  PAID
+  REJECTED
+}
+
+model Withdrawal {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method        PaymentMethod
+  status        WithdrawalStatus @default(REQUESTED)
+  amount        Decimal          @db.Decimal(30, 10)
+  fee           Decimal          @db.Decimal(30, 10) @default(0)
+  currency      String           @default("KES")
+  destination   String? // masked MSISDN / bank ref
+  requestedBy   String?
+  approvedBy    String? // maker-checker: different user from initiator
+  processedBy   String?
+  providerRef   String?          @unique
+  rejectionNote String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId, status])
+  @@map("withdrawals")
+}
+
+model PaymentEvent {
+  id             String   @id @default(cuid())
+  provider       String // mpesa, card
+  kind           String // stk_callback, c2b_confirmation, b2c_result
+  idempotencyKey String   @unique
+  payload        Json
+  processedAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  @@map("payment_events")
+}
+
+// ───────────────────────────── Risk / audit / notifications ─────────────────
+
+model ExposureSnapshot {
+  id           String   @id @default(cuid())
+  instrumentId String
+  netLots      Decimal  @db.Decimal(20, 4)
+  netNotional  Decimal  @db.Decimal(30, 10)
+  currency     String   @default("USD")
+  takenAt      DateTime @default(now())
+
+  @@index([instrumentId, takenAt])
+  @@map("exposure_snapshots")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("actor", fields: [actorId], references: [id])
+  action     String // e.g. auth.login, kyc.decision, withdrawal.approve
+  targetType String?
+  targetId   String?
+  ip         String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   NotificationChannel @default(IN_APP)
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}

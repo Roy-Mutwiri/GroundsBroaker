@@ -1,0 +1,48 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Every changeable number is tabular so columns never jitter. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::selection {
+    background: var(--gold);
+    color: #0a0c10;
+  }
+
+  /* Focus visibility (accessibility floor). */
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Respect reduced motion: no tick flashes. */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-flash-up,
+    .animate-flash-down {
+      animation: none !important;
+    }
+  }
+}

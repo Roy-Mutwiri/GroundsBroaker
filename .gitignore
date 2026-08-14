@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+!.env.example
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/migrations/dev.db*
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Test / coverage
+coverage/
+playwright-report/
+test-results/
+
+# KYC uploads (must never be committed — stored outside web root)
+backend/storage/
+uploads/

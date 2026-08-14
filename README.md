@@ -8,11 +8,12 @@
 licensed to offer real-money trading. See `docs/BRAND.md` for the risk disclosure.
 
 ## Status
-**Phase 3 (Trading engine & full terminal) — complete, in review.** Decimal margin/P&L/swap engine
-(margin-call 100% / stop-out 50%, worst-loss-first), server-side margin loop (SL/TP, stop-out, swap
-rollover), realized P&L posted to the double-entry ledger, a private authenticated account WS channel,
-and a full terminal (order ticket, positions panel, live account bar) on top of Phases 1–2 (monorepo,
-schema + seed, auth with 2FA/RBAC, market-data feed + WS quotes + candles + charts).
+**Phase 4 (Ledger, wallet & M-Pesa) — complete, in review.** Double-entry ledger with a global
+invariant + reconciliation job, an internal wallet (deposit/withdraw/transfer/statement), an idempotent
+M-Pesa STK deposit flow (simulated in demo, real Daraja behind flags), withdrawal policy with KYC gating
++ fund locking, and a portal wallet UI. Builds on Phases 1–3 (auth+2FA, market data + terminal, trading
+engine + margin loop). Verified live: deposit → balanced journal entry, idempotency (5 callbacks → 1
+credit), transfer, and withdrawal lock.
 
 ## What this will be (four surfaces, one design system)
 1. **Marketing site** — public; instruments, live spreads, accounts, funding, legal/risk pages.

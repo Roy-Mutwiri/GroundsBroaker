@@ -174,6 +174,56 @@ export interface PlaceOrderInput {
   slippagePoints?: number;
 }
 
+export interface WalletSummary {
+  wallet: { currency: string; balance: number };
+  accounts: { id: string; login: number; type: string; currency: string; leverage: number; balance: number }[];
+}
+
+export interface StatementRow {
+  id: string;
+  date: string;
+  description: string;
+  reference: string | null;
+  target: string;
+  amount: number;
+  currency: string;
+}
+
+export const walletApi = {
+  summary: () => api.get<WalletSummary>('/wallet/summary'),
+  statement: () => api.get<StatementRow[]>('/wallet/statement'),
+  transfer: (accountId: string, direction: 'TO_ACCOUNT' | 'TO_WALLET', amount: number) =>
+    api.post<WalletSummary>('/wallet/transfer', { accountId, direction, amount }),
+};
+
+export interface DepositInitResult {
+  depositId: string;
+  status: string;
+  providerRef: string;
+  customerMessage: string;
+  usdEquivalent: number;
+}
+export interface DepositStatus {
+  id: string;
+  status: 'INITIATED' | 'PENDING' | 'CONFIRMED' | 'FAILED' | 'CANCELLED';
+  amountKes: number;
+  receipt: string | null;
+  createdAt: string;
+}
+
+export const paymentsApi = {
+  deposit: (amountKes: number, phone: string) =>
+    api.post<DepositInitResult>('/payments/deposit', { amountKes, phone }),
+  depositStatus: (id: string) => api.get<DepositStatus>(`/payments/deposit/${id}`),
+  withdraw: (amountUsd: number, phone: string) =>
+    api.post<{ id: string; status: string; amountUsd: number; kesEquivalent: number }>('/payments/withdraw', {
+      amountUsd,
+      method: 'MPESA',
+      phone,
+    }),
+  withdrawals: () => api.get<{ id: string; status: string; amount: string; currency: string; destination: string | null; createdAt: string }[]>('/payments/withdrawals'),
+};
+
 export const tradingApi = {
   accounts: () => api.get<TradingAccount[]>('/trading/accounts'),
   snapshot: (accountId: string) => api.get<AccountSnapshot>(`/trading/accounts/${accountId}/snapshot`),

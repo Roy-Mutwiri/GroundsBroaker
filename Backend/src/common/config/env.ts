@@ -22,6 +22,15 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  // Demo KES→USD rate (wallet is USD; M-Pesa deposits are entered in KES).
+  USD_KES_RATE: z.coerce.number().positive().default(130),
+  // M-Pesa Daraja (optional; used only when LIVE_PAYMENTS=true and keys present).
+  MPESA_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
+  MPESA_CONSUMER_KEY: z.string().optional(),
+  MPESA_CONSUMER_SECRET: z.string().optional(),
+  MPESA_SHORTCODE: z.string().optional(),
+  MPESA_PASSKEY: z.string().optional(),
+  MPESA_CALLBACK_BASE_URL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

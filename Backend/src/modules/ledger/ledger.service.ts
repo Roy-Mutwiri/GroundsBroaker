@@ -100,4 +100,19 @@ export class LedgerService {
     const credit = D(agg._sum.credit ?? 0);
     return credit.minus(debit);
   }
+
+  /**
+   * Global invariant: across ALL journal lines, Σdebits must equal Σcredits. If this ever
+   * drifts, the ledger is corrupt. Checked by the periodic invariant job.
+   */
+  async globalInvariant(): Promise<{ balanced: boolean; debits: string; credits: string }> {
+    const agg = await this.prisma.journalLine.aggregate({ _sum: { debit: true, credit: true } });
+    const debits = D(agg._sum.debit ?? 0);
+    const credits = D(agg._sum.credit ?? 0);
+    return { balanced: debits.equals(credits), debits: debits.toString(), credits: credits.toString() };
+  }
 }
+
+/** Ledger account code helpers. */
+export const walletCode = (userId: string) => `client:${userId}:wallet`;
+export const tradingAccountCode = (userId: string, accountId: string) => `client:${userId}:account:${accountId}`;

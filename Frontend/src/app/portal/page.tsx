@@ -1,8 +1,9 @@
 'use client';
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, LogOut, Monitor, Trash2 } from 'lucide-react';
+import { ShieldCheck, LogOut, Monitor, Trash2, Wallet as WalletIcon, LineChart, ArrowRight } from 'lucide-react';
 import { Wordmark } from '@/components/brand/wordmark';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +48,11 @@ export default function PortalPage() {
           </div>
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-2">
+          <QuickCard href="/portal/wallet" icon={<WalletIcon size={18} />} title="Wallet" body="Deposit with M-Pesa, withdraw, transfer to your trading account, view history." />
+          <QuickCard href="/trade/XAUUSD" icon={<LineChart size={18} />} title="Trading terminal" body="Trade XAUUSD and global markets with live charts and the order ticket." />
+        </div>
+
         <div className="grid gap-6 md:grid-cols-2">
           <TwoFactorCard user={user} onChange={() => me.refetch()} />
           <SessionsCard />
@@ -63,6 +69,23 @@ export default function PortalPage() {
         </Card>
       </main>
     </div>
+  );
+}
+
+function QuickCard({ href, icon, title, body }: { href: string; icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <Link href={href}>
+      <Card className="transition-colors hover:border-gold-dim">
+        <CardBody>
+          <div className="flex items-start justify-between">
+            <div className="grid h-9 w-9 place-items-center rounded border border-gold-dim bg-surface-2 text-gold">{icon}</div>
+            <ArrowRight size={16} className="text-text-faint" />
+          </div>
+          <h3 className="mt-3 text-sm font-semibold text-text">{title}</h3>
+          <p className="mt-1 text-[13px] text-text-dim">{body}</p>
+        </CardBody>
+      </Card>
+    </Link>
   );
 }
 

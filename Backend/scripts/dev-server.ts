@@ -15,6 +15,11 @@ const PORT = 5433;
 const DB = 'aurum';
 const DATABASE_URL = `postgresql://postgres:postgres@localhost:${PORT}/${DB}?schema=public`;
 
+// Dev safety net: log stray rejections instead of crashing the whole dev server.
+process.on('unhandledRejection', (reason) => {
+  console.error('[dev] unhandledRejection:', reason instanceof Error ? reason.message : reason);
+});
+
 async function main(): Promise<void> {
   const fresh = !existsSync(path.join(DATA_DIR, 'postgresql.conf'));
   const pg = new EmbeddedPostgres({
@@ -32,10 +37,16 @@ async function main(): Promise<void> {
   console.log('› Starting embedded PostgreSQL on port', PORT);
   await pg.start();
   if (fresh) {
+    // Create the DB as UTF-8 (Windows initdb defaults the cluster to WIN1252, which can't
+    // store characters like ≈ or non-Latin names). template0 + C locale allows the override.
+    const client = pg.getPgClient();
+    await client.connect();
     try {
-      await pg.createDatabase(DB);
-    } catch {
-      /* already exists */
+      await client.query(`CREATE DATABASE ${DB} WITH ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0`);
+    } catch (e) {
+      if (!/already exists/i.test((e as Error).message)) throw e;
+    } finally {
+      await client.end();
     }
   }
 

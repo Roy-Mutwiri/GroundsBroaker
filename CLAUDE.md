@@ -75,6 +75,11 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
 - **`@UsePipes(ZodValidationPipe)` bug (FIXED):** method-level `@UsePipes` runs the pipe on EVERY param
   incl. `@CurrentUser`, so the schema validated the user object → "field Required". Fix: scope to body,
   `@Body(new ZodValidationPipe(schema)) dto`. Was breaking all trading routes + 2FA enable/disable.
+- **Embedded Postgres encoding (FIXED):** Windows initdb defaults the cluster to WIN1252, which can't
+  store `≈`/non-Latin chars → insert crashes. dev-server now `CREATE DATABASE aurum ENCODING 'UTF8'
+  LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0`. Also: a `setTimeout` with no `.catch` turned that
+  DB error into an unhandledRejection that killed the process — always `.catch` fire-and-forget promises
+  (dev-server also installs an unhandledRejection guard).
 
 ## Design direction decided (Phase 0 — see docs/DESIGN_NOTES.md)
 - **Name:** Aurum Markets (Au = gold = XAU). Positioning: gold-first broker for Kenya, M-Pesa funding.
@@ -93,6 +98,19 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
   NBP toggle. Kenya CMA: 400× leverage cap, segregation, signed risk-disclosure gate before trading.
 
 ## Per-phase changelog
+- **Phase 4 — Ledger, wallet & M-Pesa** (COMPLETE + VERIFIED LIVE, 2026-08-14): LedgerService gains
+  `globalInvariant` (Σdebits==Σcredits across all lines) + `walletCode`/`tradingAccountCode` helpers.
+  WalletService: wallet balance (=ledger), transfer wallet↔account (internal balanced entries), unified
+  statement (client's ledger view), creditWalletFromDeposit / lockForWithdrawal. PaymentProvider
+  interface + SimulatedMpesaProvider (demo, self-delivers STK callback) + MpesaDarajaProvider (real
+  OAuth+STK+B2C, behind LIVE_PAYMENTS+keys) + CardProviderStub. PaymentsService: STK deposit (KES→USD
+  @ USD_KES_RATE=130), **idempotent callback** (payment_events unique key → same callback ×5 = one
+  credit, PROVEN LIVE: wallet=$100 not $500), withdrawal request with KYC-tier gate + fund lock
+  (return-to-source). ReconciliationService: hourly invariant + deposit-vs-ledger match, audits
+  mismatches. Public POST /payments/mpesa/callback parses Daraja envelope. Portal /portal/wallet:
+  M-Pesa deposit with live STK status states (prompt sent→awaiting PIN→confirmed), withdraw, transfer,
+  statement + CSV export. Verified live: deposit→balanced entry, idempotency, transfer, withdrawal lock.
+  → **STOP POINT 4** (awaiting review).
 - **Phase 0 — Research & design direction** (COMPLETE pending review, 2026-08-14): repo initialised,
   git remote wired. Four parallel research streams (broker UI, terminal craft, operations/regulation,
   cashflow/M-Pesa/market-data), all sourced. Deliverables written: docs/DESIGN_NOTES.md,

@@ -9,6 +9,8 @@ import { UsersModule } from './modules/users/users.module';
 import { MetaModule } from './modules/meta/meta.module';
 import { MarketDataModule } from './modules/market-data/market-data.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
+import { WalletModule } from './modules/wallet/wallet.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { TradingModule } from './modules/trading/trading.module';
 import { GatewayModule } from './gateway/gateway.module';
 
@@ -22,6 +24,8 @@ import { GatewayModule } from './gateway/gateway.module';
     UsersModule,
     MetaModule,
     LedgerModule,
+    WalletModule,
+    PaymentsModule,
     MarketDataModule,
     TradingModule,
     GatewayModule,

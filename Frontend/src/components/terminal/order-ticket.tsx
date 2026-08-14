@@ -54,8 +54,8 @@ export function OrderTicket({ account, instrument }: { account: TradingAccount; 
         Order ticket · {instrument.symbol}
       </div>
       <div className="space-y-4 p-4">
-        {/* Buy/Sell with live prices */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Buy/Sell with live prices and the spread between them */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-1.5">
           <button
             disabled={noQuote}
             onClick={() => setPending('SELL')}
@@ -64,6 +64,12 @@ export function OrderTicket({ account, instrument }: { account: TradingAccount; 
             <span className="text-[10px] uppercase tracking-wide text-sell">Sell · bid</span>
             {q ? <FlashNumber value={q.bid} digits={instrument.digits} dir={q.dir} className="text-sell" /> : <span className="text-text-faint">—</span>}
           </button>
+          <div className="flex flex-col items-center justify-center px-1">
+            <span className="text-[9px] uppercase tracking-wide text-text-faint">Spread</span>
+            <span className="tnum font-mono text-[13px] text-text-dim">
+              {q ? ((q.ask - q.bid) * Math.pow(10, instrument.digits)).toFixed(0) : '—'}
+            </span>
+          </div>
           <button
             disabled={noQuote}
             onClick={() => setPending('BUY')}

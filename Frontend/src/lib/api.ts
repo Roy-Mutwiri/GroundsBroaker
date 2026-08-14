@@ -43,6 +43,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: 'POST', body: data === undefined ? undefined : JSON.stringify(data) }),
+  patch: <T>(path: string, data?: unknown) =>
+    request<T>(path, { method: 'PATCH', body: data === undefined ? undefined : JSON.stringify(data) }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
 
@@ -122,4 +124,70 @@ export const marketApi = {
     api.get<{ symbol: string; tf: Timeframe; tfMinutes: number; candles: Candle[] }>(
       `/candles?symbol=${encodeURIComponent(symbol)}&tf=${tf}&limit=${limit}`,
     ),
+};
+
+export interface TradingAccount {
+  id: string;
+  login: number;
+  type: 'DEMO' | 'LIVE';
+  currency: string;
+  leverage: number;
+  status: string;
+}
+
+export interface PositionSnapshot {
+  id: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  lots: number;
+  openPrice: number;
+  markPrice: number;
+  stopLoss: number | null;
+  takeProfit: number | null;
+  swap: number;
+  margin: number;
+  pnl: number;
+}
+
+export interface AccountSnapshot {
+  accountId: string;
+  currency: string;
+  balance: number;
+  equity: number;
+  usedMargin: number;
+  freeMargin: number;
+  floatingPnl: number;
+  marginLevel: number | null;
+  marginCall: boolean;
+  positions: PositionSnapshot[];
+}
+
+export interface PlaceOrderInput {
+  accountId: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  kind?: 'MARKET' | 'LIMIT' | 'STOP';
+  lots: number;
+  price?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  slippagePoints?: number;
+}
+
+export const tradingApi = {
+  accounts: () => api.get<TradingAccount[]>('/trading/accounts'),
+  snapshot: (accountId: string) => api.get<AccountSnapshot>(`/trading/accounts/${accountId}/snapshot`),
+  history: (accountId: string) => api.get<unknown[]>(`/trading/accounts/${accountId}/history`),
+  placeOrder: (input: PlaceOrderInput) =>
+    api.post<{ positionId?: string; orderId?: string; status: string; price?: number; margin?: number }>(
+      '/trading/orders',
+      input,
+    ),
+  closePosition: (accountId: string, positionId: string, lots?: number) =>
+    api.post<{ closed: boolean; pnl: number }>(
+      `/trading/positions/${positionId}/close?accountId=${accountId}`,
+      lots ? { lots } : {},
+    ),
+  modifyPosition: (accountId: string, positionId: string, stopLoss: number | null, takeProfit: number | null) =>
+    api.patch<{ positionId: string }>(`/trading/positions/${positionId}?accountId=${accountId}`, { stopLoss, takeProfit }),
 };

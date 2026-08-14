@@ -1,6 +1,8 @@
 'use client';
 import * as React from 'react';
 import { useQuotes, type QuoteFrame } from '@/stores/quotes';
+import { useAccount, type AccountEvent } from '@/stores/account';
+import type { AccountSnapshot } from '@/lib/api';
 
 /** Backend WS origin (ws:// derived from the API origin). WS is not proxied by Next in dev. */
 function wsUrl(): string {
@@ -15,6 +17,7 @@ function wsUrl(): string {
 class QuotesSocket {
   private socket: WebSocket | null = null;
   private readonly counts = new Map<string, number>();
+  private watchedAccount: string | null = null;
   private backoff = 500;
   private connecting = false;
 
@@ -32,11 +35,21 @@ class QuotesSocket {
       this.backoff = 500;
       const symbols = Array.from(this.counts.keys());
       if (symbols.length) this.rawSend({ op: 'subscribe', symbols });
+      if (this.watchedAccount) this.rawSend({ op: 'watchAccount', accountId: this.watchedAccount });
     };
     socket.onmessage = (ev) => {
       try {
-        const msg = JSON.parse(ev.data as string) as { type?: string; frames?: QuoteFrame[] };
+        const msg = JSON.parse(ev.data as string) as {
+          type?: string;
+          frames?: QuoteFrame[];
+          snapshot?: AccountSnapshot;
+          event?: string;
+          data?: Record<string, unknown>;
+        };
         if (msg.type === 'quotes' && msg.frames) useQuotes.getState().apply(msg.frames);
+        else if (msg.type === 'account' && msg.snapshot) useAccount.getState().setSnapshot(msg.snapshot);
+        else if (msg.type === 'accountEvent' && msg.event)
+          useAccount.getState().pushEvent({ event: msg.event, data: (msg.data ?? {}) as AccountEvent['data'] });
       } catch {
         /* ignore malformed frame */
       }
@@ -80,6 +93,12 @@ class QuotesSocket {
     }
     if (gone.length) this.rawSend({ op: 'unsubscribe', symbols: gone });
   }
+
+  watchAccount(accountId: string): void {
+    this.watchedAccount = accountId;
+    this.ensure();
+    this.rawSend({ op: 'watchAccount', accountId });
+  }
 }
 
 const socket = new QuotesSocket();
@@ -94,3 +113,14 @@ export function useQuoteSubscription(symbols: string[]): void {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 }
+
+/** Watch a trading account's private channel (authenticated by the session cookie). */
+export function useAccountWatch(accountId: string | null): void {
+  React.useEffect(() => {
+    if (!accountId) return;
+    socket.watchAccount(accountId);
+  }, [accountId]);
+}
+
+// Re-export for consumers that want the event type.
+export type { AccountEvent };

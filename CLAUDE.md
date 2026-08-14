@@ -47,6 +47,15 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
   (banker's rounding). `money(v,dp=2)`, `price(v,digits)`. Unit-proven: 0.1+0.2===0.3 exactly.
 - Spread markup (Phase 2): `spread = spreadMarkupPoints × pointSize`; `bid = mid − spread/2`,
   `ask = mid + spread/2`, rounded to `digits`. Candle rollup: O=first,H=max,L=min,C=last,V=sum per bucket.
+- Trading engine (Phase 3, `Backend/src/modules/trading/engine.ts`, pure Decimal, unit-proven):
+  - `margin = lots·contractSize·price·convRate / leverage` (XAUUSD 0.10@3000 1:200 = $150)
+  - `floatingPnl = (cur−open)·dir·lots·contractSize·convRate` (gold 3000→3010 0.10 long = +$100)
+  - `pipValue = lots·contractSize·pipSize·convRate`; `equity = balance + Σfloat`;
+    `marginLevel = equity/usedMargin·100`; margin-call 100%, **stop-out 50%**, worst-loss-closed-first
+  - `swap = swapPoints·lots·(contractSize·pointSize·convRate)`, ×3 on Wednesday (triple day)
+  - `convRate` = quote-ccy→account-ccy (USD→1; else XUSD or 1/USDX from live cache)
+  - `settlementLines()` builds the balanced close entry (P&L↔pnl:trading, swap↔revenue:swap, net↔client);
+    rounds parts to 10dp first so Σdebits==Σcredits exactly (2000-iter property test).
 - _Margin, floating P&L, equity/free margin/margin level, stop-out ordering, swap/triple-day,
   pip value (incl. XAUUSD contract_size=100) — Phase 3._
 
@@ -81,6 +90,19 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
   cashflow/M-Pesa/market-data), all sourced. Deliverables written: docs/DESIGN_NOTES.md,
   docs/OPERATIONS_NOTES.md, docs/BRAND.md. Design direction chosen + self-critiqued vs banned patterns.
   → **STOP POINT 0** — APPROVED.
+- **Phase 3 — Trading engine & full terminal** (COMPLETE pending review, 2026-08-14): pure Decimal
+  engine (margin/P&L/pip/swap/metrics/stop-out) + 17 engine tests incl. property tests (equity
+  identity over 1000 books, worst-first stop-out over 500, ledger-balance over 2000). Minimal
+  LedgerService (balanced `post`, derived `balance`). TradingService: per-account serialized
+  execution (in-mem mutex), market fill (BUY@ask/SELL@bid + slippage), pending LIMIT/STOP triggers,
+  free-margin check, partial/full close posting realized P&L↔ledger atomically, SL/TP, modify, preview.
+  AccountEngine: ~1Hz margin loop (SL/TP + stop-out worst-first) + 22:00 UTC swap rollover (×3 Wed).
+  Private WS account channel (cookie-authed) pushing 1Hz snapshots + fill/close/stop-out events.
+  Frontend: order ticket (buy@ask/sell@bid, lot stepper, SL/TP, live margin+pip preview, confirm
+  dialog), positions panel (live P&L, close, aggregate), live account bar (margin-level colour states),
+  account WS store + event toaster. Verified: backend tsc✓ 30 vitest✓ eslint✓; frontend tsc✓ build✓.
+  → **STOP POINT 3** (awaiting review). Note: live DB/Redis flow (incl. scripted stop-out demo) runs
+  on user's Docker; ordering + money invariants are unit-proven here.
 - **Phase 2 — Market data & chart shell** (COMPLETE pending review, 2026-08-14): Backend `FeedAdapter`
   interface + `SimulatedFeed` (mean-reverting walk, weekend closures, vol bursts, ~5 ticks/s/symbol),
   MarketDataService applies per-instrument spread markup (spreadMarkupPoints×pointSize) → publishes to

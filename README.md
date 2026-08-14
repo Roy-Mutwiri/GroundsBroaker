@@ -8,10 +8,11 @@
 licensed to offer real-money trading. See `docs/BRAND.md` for the risk disclosure.
 
 ## Status
-**Phase 2 (Market data & chart shell) — complete, in review.** Simulated feed + spread markup, Redis
-fan-out, `ws` gateway (coalesced quotes), 1m candle aggregation + history API, and a live trading
-terminal at `/trade/[symbol]` (streaming watchlist + lightweight-charts). Builds on Phase 1's monorepo,
-Prisma schema v1 + seed, auth (argon2id + TOTP 2FA + sessions/RBAC), and design system.
+**Phase 3 (Trading engine & full terminal) — complete, in review.** Decimal margin/P&L/swap engine
+(margin-call 100% / stop-out 50%, worst-loss-first), server-side margin loop (SL/TP, stop-out, swap
+rollover), realized P&L posted to the double-entry ledger, a private authenticated account WS channel,
+and a full terminal (order ticket, positions panel, live account bar) on top of Phases 1–2 (monorepo,
+schema + seed, auth with 2FA/RBAC, market-data feed + WS quotes + candles + charts).
 
 ## What this will be (four surfaces, one design system)
 1. **Marketing site** — public; instruments, live spreads, accounts, funding, legal/risk pages.

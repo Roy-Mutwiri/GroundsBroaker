@@ -8,6 +8,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { MetaModule } from './modules/meta/meta.module';
 import { MarketDataModule } from './modules/market-data/market-data.module';
+import { LedgerModule } from './modules/ledger/ledger.module';
+import { TradingModule } from './modules/trading/trading.module';
 import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
@@ -19,7 +21,9 @@ import { GatewayModule } from './gateway/gateway.module';
     AuthModule,
     UsersModule,
     MetaModule,
+    LedgerModule,
     MarketDataModule,
+    TradingModule,
     GatewayModule,
   ],
 })

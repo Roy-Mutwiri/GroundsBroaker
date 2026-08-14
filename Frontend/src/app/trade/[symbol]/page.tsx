@@ -11,9 +11,13 @@ import { FlashNumber } from '@/components/ui/flash-number';
 import { Watchlist } from '@/components/terminal/watchlist';
 import { Chart } from '@/components/terminal/chart';
 import { AccountBar } from '@/components/terminal/account-bar';
-import { marketApi, type Instrument, type Timeframe } from '@/lib/api';
-import { useQuoteSubscription } from '@/lib/ws';
+import { OrderTicket } from '@/components/terminal/order-ticket';
+import { PositionsPanel } from '@/components/terminal/positions-panel';
+import { useToast } from '@/components/ui/toast';
+import { marketApi, tradingApi, type Instrument, type Timeframe } from '@/lib/api';
+import { useQuoteSubscription, useAccountWatch } from '@/lib/ws';
 import { useQuotes, selectQuote } from '@/stores/quotes';
+import { useAccount } from '@/stores/account';
 
 const TIMEFRAMES: Timeframe[] = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
 
@@ -27,6 +31,15 @@ export default function TerminalPage() {
   const instruments = React.useMemo(() => instrumentsQuery.data ?? [], [instrumentsQuery.data]);
   const symbols = React.useMemo(() => instruments.map((i) => i.symbol), [instruments]);
   useQuoteSubscription(symbols);
+
+  // Trading account (requires sign-in). Watch its private channel for live snapshots.
+  const accountsQuery = useQuery({ queryKey: ['tradingAccounts'], queryFn: tradingApi.accounts });
+  const account = accountsQuery.data?.[0];
+  const setAccountId = useAccount((s) => s.setAccountId);
+  React.useEffect(() => {
+    if (account) setAccountId(account.id);
+  }, [account, setAccountId]);
+  useAccountWatch(account?.id ?? null);
 
   const active: Instrument | undefined = instruments.find((i) => i.symbol === symbol);
 
@@ -75,22 +88,51 @@ export default function TerminalPage() {
           <BottomPanel />
         </section>
 
-        {/* Order ticket placeholder (Phase 3) */}
+        {/* Order ticket */}
         <aside className="hidden border-l border-border md:block">
-          <div className="border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-text-faint">
-            Order ticket
-          </div>
-          <div className="space-y-3 p-4 text-[13px] text-text-dim">
-            <p>The order ticket — buy at ask / sell at bid, lot stepper, SL/TP, live margin &amp; pip-value preview — arrives in Phase 3.</p>
-            <div className="grid grid-cols-2 gap-2 opacity-50">
-              <div className="rounded bg-buy/20 py-2 text-center text-buy">Buy</div>
-              <div className="rounded bg-sell/20 py-2 text-center text-sell">Sell</div>
+          {account && active ? (
+            <OrderTicket account={account} instrument={active} />
+          ) : (
+            <div className="space-y-3 p-4 text-[13px] text-text-dim">
+              <div className="border-b border-border pb-2 text-[11px] font-semibold uppercase tracking-wide text-text-faint">
+                Order ticket
+              </div>
+              <p>Sign in to trade your demo account.</p>
+              <Link href="/login">
+                <Button size="sm">Sign in</Button>
+              </Link>
             </div>
-          </div>
+          )}
         </aside>
       </div>
+      <AccountEventToaster />
     </div>
   );
+}
+
+/** Surfaces server-side account events (fills, stop-loss/take-profit, stop-out) as toasts. */
+function AccountEventToaster() {
+  const { toast } = useToast();
+  const lastEvent = useAccount((s) => s.lastEvent);
+  React.useEffect(() => {
+    if (!lastEvent) return;
+    const { event, data } = lastEvent;
+    const labels: Record<string, string> = {
+      fill: 'Order filled',
+      closed: 'Position closed',
+      stop_loss: 'Stop loss hit',
+      take_profit: 'Take profit hit',
+      stop_out: 'Position stopped out',
+    };
+    const tone = event === 'stop_out' || event === 'stop_loss' ? 'error' : event === 'take_profit' ? 'success' : 'default';
+    toast({
+      title: labels[event] ?? event,
+      description: [data.symbol, data.pnl !== undefined ? `P&L ${data.pnl >= 0 ? '+' : ''}${data.pnl}` : null].filter(Boolean).join(' · '),
+      tone,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastEvent?.seq]);
+  return null;
 }
 
 function ChartHeader({
@@ -152,8 +194,8 @@ function BottomPanel() {
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
         </div>
-        <TabsContent value="positions" className="flex-1 grid place-items-center text-[13px] text-text-faint">
-          No open positions — the order ticket (Phase 3) will place your first trade.
+        <TabsContent value="positions" className="min-h-0 flex-1 overflow-hidden">
+          <PositionsPanel />
         </TabsContent>
         <TabsContent value="orders" className="flex-1 grid place-items-center text-[13px] text-text-faint">
           No pending orders.

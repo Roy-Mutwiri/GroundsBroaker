@@ -37,6 +37,43 @@ export class MarketDataService implements OnModuleInit, OnModuleDestroy {
     return this.instruments;
   }
 
+  getInstrument(symbol: string): Instrument | undefined {
+    return this.instruments.find((i) => i.symbol === symbol.toUpperCase());
+  }
+
+  /** Current bid/ask from the Redis Last-Value-Cache (null if not yet priced). */
+  async getQuote(symbol: string): Promise<{ bid: number; ask: number } | null> {
+    const raw = await this.redis.client.get(lvcKey(symbol.toUpperCase()));
+    if (!raw) return null;
+    try {
+      const f = JSON.parse(raw) as QuoteFrame;
+      return { bid: f.b, ask: f.a };
+    } catch {
+      return null;
+    }
+  }
+
+  private async getMid(symbol: string): Promise<number | null> {
+    const q = await this.getQuote(symbol);
+    return q ? (q.bid + q.ask) / 2 : null;
+  }
+
+  /**
+   * Conversion rate from an instrument's QUOTE currency into the account currency (USD).
+   * USD→1; otherwise uses XUSD (direct) or USDX (inverted) from the live cache.
+   */
+  async getConvRate(quoteCcy: string, accountCcy = 'USD'): Promise<number> {
+    if (quoteCcy === accountCcy) return 1;
+    if (accountCcy === 'USD') {
+      const direct = await this.getMid(`${quoteCcy}USD`);
+      if (direct) return direct;
+      const inverse = await this.getMid(`USD${quoteCcy}`);
+      if (inverse) return 1 / inverse;
+    }
+    this.logger.warn(`No conversion ${quoteCcy}->${accountCcy}; using 1`);
+    return 1;
+  }
+
   async onModuleInit(): Promise<void> {
     this.instruments = await this.prisma.instrument.findMany({ where: { enabled: true }, orderBy: { symbol: 'asc' } });
     if (this.instruments.length === 0) {

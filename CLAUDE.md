@@ -45,6 +45,8 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
 ## Formulas implemented (fill in as built)
 - Money helper `Backend/src/common/money/decimal.ts`: decimal.js, precision 40, ROUND_HALF_EVEN
   (banker's rounding). `money(v,dp=2)`, `price(v,digits)`. Unit-proven: 0.1+0.2===0.3 exactly.
+- Spread markup (Phase 2): `spread = spreadMarkupPoints × pointSize`; `bid = mid − spread/2`,
+  `ask = mid + spread/2`, rounded to `digits`. Candle rollup: O=first,H=max,L=min,C=last,V=sum per bucket.
 - _Margin, floating P&L, equity/free margin/margin level, stop-out ordering, swap/triple-day,
   pip value (incl. XAUUSD contract_size=100) — Phase 3._
 
@@ -79,6 +81,19 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
   cashflow/M-Pesa/market-data), all sourced. Deliverables written: docs/DESIGN_NOTES.md,
   docs/OPERATIONS_NOTES.md, docs/BRAND.md. Design direction chosen + self-critiqued vs banned patterns.
   → **STOP POINT 0** — APPROVED.
+- **Phase 2 — Market data & chart shell** (COMPLETE pending review, 2026-08-14): Backend `FeedAdapter`
+  interface + `SimulatedFeed` (mean-reverting walk, weekend closures, vol bursts, ~5 ticks/s/symbol),
+  MarketDataService applies per-instrument spread markup (spreadMarkupPoints×pointSize) → publishes to
+  Redis `quotes` channel + Last-Value-Cache → `ws` gateway at `/ws` fans out per-client, coalesced ≤4/s
+  (250ms flush), snapshot-on-subscribe from LVC. Protocol: client `{op:subscribe,symbols}` → server
+  `{type:quotes,frames:[{t,s,b,a}]}`. Candle aggregation: 1m candles built from mids, persisted to
+  candles_1m on minute rollover; 2-day history backfilled on first boot; `GET /candles?symbol&tf&limit`
+  (M1–D1 rolled up via pure `aggregateCandles`, unit-tested); `GET /instruments`. Frontend: Zustand
+  quotes store (outside render), reconnecting singleton WS client (ref-counted subs), terminal at
+  `/trade/[symbol]` — watchlist (tick-flash), lightweight-charts v5 chart (REST history → imperative
+  live forming candle), tf switcher, account-bar stub, CVD toggle. Verified: backend tsc✓ 13 vitest✓
+  eslint✓; frontend tsc✓ next build✓ (9 routes). Live WS/Redis flow runs on user's Docker.
+  → **STOP POINT 2** (awaiting review).
 - **Phase 1 — Foundation** (COMPLETE pending review, 2026-08-14): npm-workspaces monorepo (Frontend/,
   Backend/), docker-compose (postgres:16, redis:7), documented .env.example files, docs/ARCHITECTURE.md.
   Backend: NestFastify + Prisma schema v1 (full core model, money=Decimal, ledger tables), seed

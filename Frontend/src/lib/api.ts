@@ -84,3 +84,42 @@ export interface SessionInfo {
 export const metaApi = {
   config: () => api.get<{ brand: string; liveTrading: boolean; livePayments: boolean; demoMode: boolean }>('/config'),
 };
+
+export interface Instrument {
+  symbol: string;
+  displayName: string;
+  category: 'FX_MAJOR' | 'FX_MINOR' | 'METAL' | 'INDEX' | 'CRYPTO';
+  digits: number;
+  contractSize: number;
+  pipSize: number;
+  pointSize: number;
+  minLot: number;
+  maxLot: number;
+  lotStep: number;
+  leverageCap: number;
+  baseCurrency: string;
+  quoteCurrency: string;
+  spreadMarkupPoints: number;
+  swapLong: number;
+  swapShort: number;
+}
+
+export interface Candle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export type Timeframe = 'M1' | 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1';
+
+export const marketApi = {
+  instruments: () => api.get<Instrument[]>('/instruments'),
+  instrument: (symbol: string) => api.get<Instrument>(`/instruments/${symbol}`),
+  candles: (symbol: string, tf: Timeframe, limit = 500) =>
+    api.get<{ symbol: string; tf: Timeframe; tfMinutes: number; candles: Candle[] }>(
+      `/candles?symbol=${encodeURIComponent(symbol)}&tf=${tf}&limit=${limit}`,
+    ),
+};

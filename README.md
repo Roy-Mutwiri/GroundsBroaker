@@ -8,8 +8,10 @@
 licensed to offer real-money trading. See `docs/BRAND.md` for the risk disclosure.
 
 ## Status
-**Phase 1 (Foundation) — complete, in review.** Monorepo, Prisma schema v1 + seed, auth (argon2id +
-TOTP 2FA + sessions/RBAC), design tokens + UI primitives, marketing/showcase/auth/portal surfaces.
+**Phase 2 (Market data & chart shell) — complete, in review.** Simulated feed + spread markup, Redis
+fan-out, `ws` gateway (coalesced quotes), 1m candle aggregation + history API, and a live trading
+terminal at `/trade/[symbol]` (streaming watchlist + lightweight-charts). Builds on Phase 1's monorepo,
+Prisma schema v1 + seed, auth (argon2id + TOTP 2FA + sessions/RBAC), and design system.
 
 ## What this will be (four surfaces, one design system)
 1. **Marketing site** — public; instruments, live spreads, accounts, funding, legal/risk pages.
@@ -59,7 +61,8 @@ npm run seed                # instruments, admin, demo client + funded demo acco
 npm run dev
 ```
 
-Open **http://localhost:3000** (marketing), **/showcase** (design system), **/register** or **/login**.
+Open **http://localhost:3000** (marketing), **/trade/XAUUSD** (trading terminal — live watchlist +
+chart), **/showcase** (design system), **/register** or **/login**.
 Seeded logins are printed by the seed script:
 - **Client** `demo@aurum.markets` / `Aurum#Demo1` (KYC tier 2, $10,000 demo account)
 - **Admin** `admin@aurum.markets` / `Aurum#Admin1` (+ a TOTP `otpauth://` URL to add to your authenticator)

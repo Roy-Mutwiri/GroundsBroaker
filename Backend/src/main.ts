@@ -4,8 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import fastifyCookie from '@fastify/cookie';
+import type { Server } from 'http';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/errors/http-exception.filter';
+import { QuotesGateway } from './gateway/quotes.gateway';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter({ trustProxy: true }), {
@@ -29,8 +31,13 @@ async function bootstrap(): Promise<void> {
 
   const port = config.get<number>('PORT', 4000);
   await app.listen(port, '0.0.0.0');
+
+  // Attach the WebSocket quotes gateway to the running HTTP server (path /ws).
+  const httpServer = app.getHttpServer() as Server;
+  await app.get(QuotesGateway).attach(httpServer);
+
   const live = config.get<boolean>('LIVE_TRADING');
-  Logger.log(`Aurum API on http://localhost:${port}/api/v1  (LIVE_TRADING=${live})`, 'Bootstrap');
+  Logger.log(`Aurum API on http://localhost:${port}/api/v1  ·  WS ws://localhost:${port}/ws  (LIVE_TRADING=${live})`, 'Bootstrap');
 }
 
 void bootstrap();

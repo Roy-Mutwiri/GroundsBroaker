@@ -26,6 +26,11 @@ export function SiteHeader() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/trade/XAUUSD">
+            <Button variant="ghost" size="sm">
+              Trade
+            </Button>
+          </Link>
           <Link href="/login">
             <Button variant="ghost" size="sm">
               Log in

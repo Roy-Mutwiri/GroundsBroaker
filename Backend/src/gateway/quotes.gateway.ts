@@ -47,7 +47,9 @@ export class QuotesGateway {
     this.wss.on('connection', (socket, req) => void this.onConnection(socket, req));
 
     await this.redis.subscriber.subscribe(QUOTES_CHANNEL);
-    this.redis.subscriber.on('message', (channel: string, message: string) => {
+    this.redis.subscriber.on('message', (...args: unknown[]) => {
+      const channel = args[0] as string;
+      const message = args[1] as string;
       if (channel !== QUOTES_CHANNEL) return;
       let frame: QuoteFrame;
       try {

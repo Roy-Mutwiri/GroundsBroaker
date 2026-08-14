@@ -92,16 +92,14 @@ export class AuthController {
 
   @Post('2fa/enable')
   @UseGuards(SessionGuard)
-  @UsePipes(new ZodValidationPipe(totpCodeSchema))
-  async enable2fa(@Body() dto: TotpCodeDto, @CurrentUser() user: AuthedUser, @Req() req: FastifyRequest) {
+  async enable2fa(@Body(new ZodValidationPipe(totpCodeSchema)) dto: TotpCodeDto, @CurrentUser() user: AuthedUser, @Req() req: FastifyRequest) {
     await this.auth.enableTotp(user.id, dto.code, this.meta(req));
     return { ok: true };
   }
 
   @Post('2fa/disable')
   @UseGuards(SessionGuard)
-  @UsePipes(new ZodValidationPipe(totpCodeSchema))
-  async disable2fa(@Body() dto: TotpCodeDto, @CurrentUser() user: AuthedUser, @Req() req: FastifyRequest) {
+  async disable2fa(@Body(new ZodValidationPipe(totpCodeSchema)) dto: TotpCodeDto, @CurrentUser() user: AuthedUser, @Req() req: FastifyRequest) {
     await this.auth.disableTotp(user, dto.code, this.meta(req));
     return { ok: true };
   }

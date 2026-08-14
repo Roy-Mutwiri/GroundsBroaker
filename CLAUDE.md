@@ -65,8 +65,16 @@ Repo: https://github.com/Roy-Mutwiri/GroundsBroaker  (branch: `main`)
   Required for argon2 binding + prisma engines + esbuild(vitest). Normal npm elsewhere ignores that key.
 - **@fastify/cookie + Nest Fastify adapter**: type mismatch (missing serializeCookie…). Register with
   `fastifyCookie as any` + eslint-disable — harmless plugin-augmentation interop gap.
-- No Docker/pnpm in the dev sandbox → **npm workspaces**; Postgres/Redis run via the user's own Docker.
-  Live register→login→2FA verified by the user locally (compiles + unit-tested here).
+- No Docker/pnpm in the dev sandbox → **npm workspaces**. **No-Docker dev mode** added:
+  `npm run dev` runs `Backend/scripts/dev-server.ts` — boots **embedded Postgres 18** (real binary via
+  `embedded-postgres`, data in `Backend/.devdata/pg`, port 5433) + an **in-process Redis shim**
+  (`REDIS_DRIVER=memory`), `prisma db push`, seed-on-first-run, then Nest. `npm run dev:docker` uses
+  real Postgres/Redis. Chose embedded Postgres over SQLite deliberately: SQLite stores NUMERIC as float
+  → corrupts money (principle #1). VERIFIED LIVE here: login, BUY 0.5 XAUUSD (margin $751.86), floating
+  P&L, close → ledger balance delta == realized P&L (−429); WS ≈4 quotes/sec (coalescing working).
+- **`@UsePipes(ZodValidationPipe)` bug (FIXED):** method-level `@UsePipes` runs the pipe on EVERY param
+  incl. `@CurrentUser`, so the schema validated the user object → "field Required". Fix: scope to body,
+  `@Body(new ZodValidationPipe(schema)) dto`. Was breaking all trading routes + 2FA enable/disable.
 
 ## Design direction decided (Phase 0 — see docs/DESIGN_NOTES.md)
 - **Name:** Aurum Markets (Au = gold = XAU). Positioning: gold-first broker for Kenya, M-Pesa funding.

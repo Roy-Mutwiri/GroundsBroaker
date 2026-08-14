@@ -7,6 +7,8 @@ export const envSchema = z.object({
   FRONTEND_ORIGIN: z.string().url().default('http://localhost:3000'),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().default('redis://localhost:6379'),
+  // 'redis' = real Redis (Docker); 'memory' = in-process shim (no-Docker dev mode).
+  REDIS_DRIVER: z.enum(['redis', 'memory']).default('redis'),
   SESSION_COOKIE_NAME: z.string().default('aurum_session'),
   SESSION_TTL_DAYS: z.coerce.number().default(7),
   COOKIE_SECRET: z.string().min(8).default('dev-only-cookie-secret-change-me'),

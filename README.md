@@ -41,25 +41,25 @@ CLAUDE.md   # living project memory — read first
 
 ## Run (local dev)
 
-Prerequisites: Node 20–24, npm, Docker Desktop.
+Prerequisites: Node 20–24, npm. **No Docker required.**
 
 ```bash
-# 1. Install (this sandbox blocks native install scripts — see note below)
-npm install
+npm install     # if native scripts are blocked, see the note below
+npm run dev     # starts EVERYTHING: embedded Postgres + API (:4000) + frontend (:3000)
+```
 
-# 2. Start Postgres 16 + Redis 7
+`npm run dev` uses a **no-Docker dev mode**: it launches a real embedded PostgreSQL (binary managed
+by npm, data in `Backend/.devdata/`), pushes the schema, seeds demo data on first run, uses an
+in-process Redis shim, then starts the API and frontend. First run takes ~30s (DB init + seed);
+after that it's fast. Delete `Backend/.devdata/` to reset.
+
+Prefer the real infra (Postgres 16 + Redis 7 in Docker)? Use `npm run dev:docker`:
+
+```bash
 docker compose up -d
-
-# 3. Configure env
-cp Backend/.env.example Backend/.env
-cp Frontend/.env.example Frontend/.env
-
-# 4. Create the schema and seed demo data
-npm run prisma:migrate      # runs `prisma migrate dev` in Backend
-npm run seed                # instruments, admin, demo client + funded demo account
-
-# 5. Run both apps (backend :4000, frontend :3000)
-npm run dev
+cp Backend/.env.example Backend/.env && cp Frontend/.env.example Frontend/.env
+npm run prisma:migrate && npm run seed
+npm run dev:docker
 ```
 
 Open **http://localhost:3000** (marketing), **/trade/XAUUSD** (trading terminal — live watchlist +

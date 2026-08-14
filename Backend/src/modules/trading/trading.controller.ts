@@ -1,5 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards, UsePipes } from '@nestjs/common';
-import { FastifyRequest } from 'fastify';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ZodValidationPipe } from '../../common/zod/zod-validation.pipe';
 import { SessionGuard } from '../auth/session.guard';
@@ -59,23 +58,25 @@ export class TradingController {
   }
 
   @Post('orders')
-  @UsePipes(new ZodValidationPipe(placeOrderSchema))
-  place(@CurrentUser() user: AuthedUser, @Body() dto: PlaceOrderDto, @Req() _req: FastifyRequest) {
+  place(@CurrentUser() user: AuthedUser, @Body(new ZodValidationPipe(placeOrderSchema)) dto: PlaceOrderDto) {
     return this.trading.placeOrder(user.id, dto);
   }
 
   @Post('positions/:id/close')
-  @UsePipes(new ZodValidationPipe(closePositionSchema))
-  close(@CurrentUser() user: AuthedUser, @Param('id') id: string, @Body() dto: ClosePositionDto, @Query('accountId') accountId: string) {
+  close(
+    @CurrentUser() user: AuthedUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(closePositionSchema)) dto: ClosePositionDto,
+    @Query('accountId') accountId: string,
+  ) {
     return this.trading.closePosition(user.id, accountId, id, dto.lots);
   }
 
   @Patch('positions/:id')
-  @UsePipes(new ZodValidationPipe(modifyPositionSchema))
   modify(
     @CurrentUser() user: AuthedUser,
     @Param('id') id: string,
-    @Body() dto: ModifyPositionDto,
+    @Body(new ZodValidationPipe(modifyPositionSchema)) dto: ModifyPositionDto,
     @Query('accountId') accountId: string,
   ) {
     return this.trading.modifyPosition(user.id, accountId, id, dto.stopLoss, dto.takeProfit);

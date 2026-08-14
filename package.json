@@ -12,8 +12,9 @@
   },
   "scripts": {
     "dev": "concurrently -n backend,frontend -c yellow,cyan \"npm:dev:backend\" \"npm:dev:frontend\"",
-    "dev:backend": "npm run start:dev -w Backend",
+    "dev:backend": "npm run dev:local -w Backend",
     "dev:frontend": "npm run dev -w Frontend",
+    "dev:docker": "concurrently -n backend,frontend -c yellow,cyan \"npm run start:dev -w Backend\" \"npm run dev -w Frontend\"",
     "build": "npm run build -w Backend && npm run build -w Frontend",
     "typecheck": "npm run typecheck -w Backend && npm run typecheck -w Frontend",
     "lint": "npm run lint -w Backend && npm run lint -w Frontend",
@@ -32,6 +33,7 @@
     "esbuild@0.28.2": true,
     "prisma@6.19.3": true,
     "sharp@0.34.5": true,
-    "unrs-resolver@1.12.2": true
+    "unrs-resolver@1.12.2": true,
+    "@embedded-postgres/windows-x64@18.4.0-beta.17": true
   }
 }

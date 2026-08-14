@@ -20,6 +20,10 @@ out/
 backend/prisma/*.db
 backend/prisma/migrations/dev.db*
 
+# Embedded Postgres data (no-Docker dev mode)
+Backend/.devdata/
+.devdata/
+
 # Logs
 *.log
 npm-debug.log*
